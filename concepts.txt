@@ -1,0 +1,70 @@
+
+
+
+
+
+
+
+
+A | B  super position , vertical product
+
+  A
+-------
+  B
+
+A , B  posession , horizontal product
+
+      |
+  A   |    B
+      |
+
+A ; B   time arrow , upward product
+          |     U
+          |   /
+          | /
+          |/
+------------------------  H
+        / |
+      /   |
+    /     |
+          |
+          V
+
+
+A -> A,A // duplicate , horizontal diagonal
+A|A -> A // superposition , vertical diagonal
+
+~ ⊕⊕⊕ ⊞⊠
+A>B := ¬(A ¬B)
+
+  A|X->B|X : f
+   A
+ 1.A  *    ↶.X
+A     ,   X     , ~X
+ L    *   R     *  1
+A|X   ,   A|X   ,  ~X
+    ∇           *  1
+  A|X           ,  ~X
+  f             *  1
+  B|X           ,  ~X
+            ev
+          B
+A
+A,X,~X
+A+X, A+X, ~X
+A+X, ~X
+B<~X, ~X
+B
+
+A - channel-name - ¬A - A
+A ¬A A ¬A
+
+
+A ¬A
+
+x -> x*x
+
+ x -| $x.{$x $x} |> {$x $y}.$x*$y |>
+f = polynomial of x
+f' : Z^w -* Z
+x -> x,x,x,x,x,x,.. -> fx

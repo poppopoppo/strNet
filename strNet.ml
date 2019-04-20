@@ -1,4 +1,3 @@
-
 module NameMap = Map.Make(String)
 module IntMap = Map.Make(struct type t = int let compare = compare end)
 type name_set = unit NameMap.t
@@ -6,18 +5,15 @@ type int_set = unit IntMap.t
 type name = string
 
 type t = {
-  mutable proc_n : int;
+  cyc_n : int;
   trs_set : trs NameMap.t;
   mutable itm_set : itms
-  }
+}
 and trs =
   | Ply of {
-    src : name_set;
-    dst_f : vlu NameMap.t;
-    }
-  | Frk of {
       src : name_set;
-      dst_f : (vlu NameMap.t) list ;
+      cyc : bool;
+      dst_f : vlu NameMap.t;
     }
   | Obs of {
       cnd : name;
@@ -26,7 +22,7 @@ and trs =
     }
 and itms = (itms_key,vlu) Hashtbl.t
 and itms_key = {
-  prc : int;
+  cyc : int;
   pos : name
 }
 and vlu =
@@ -39,41 +35,84 @@ and vlu =
   | Itm of name
   | Plus of (vlu * vlu)
   | Mult of (vlu * vlu)
-let consume itms p s =
+let consume itms c src_set =
   let f k () (itms,binds) =
-    let x = Hashtbl.find itms { prc=p; pos=k} in
-    let _ = Hashtbl.remove itms { prc=p; pos=k} in
+    let x = Hashtbl.find itms { cyc=c; pos=k} in
+    let _ = Hashtbl.remove itms { cyc=c; pos=k} in
     (itms,NameMap.add k x binds) in
-  let (itms',s') = NameMap.fold f s (itms,NameMap.empty) in
-  (itms',s')
-let operate n t p =
-  match t with
+  let (itms',binds) = NameMap.fold f src_set (itms,NameMap.empty) in
+  (itms',binds)
+let operate cy net trs =
+  match trs with
   | Ply t ->
-    let ((itms',s),dst_f) = (consume n.itm_set p t.src,t.dst_f) in
+    let ((itms',s),dst_f) = (consume net.itm_set cy t.src,t.dst_f) in
+    let cy' = if t.cyc then (net.cyc_n+1) else cy in
     let fld k v hsh =
-      Hashtbl.add hsh { prc=p;pos=k } v; hsh in
+      Hashtbl.add hsh { cyc=cy';pos=k } v; hsh in
     let dst_f' = NameMap.fold fld s itms' in
-    dst_f'
-  | Frk t ->
-    let pn = n.proc_n in
-    of {
-      src : name_set;
-      dst_f : (vlu NameMap.t) list ;
-    }
-  | Obs of {
-      cnd : name;
-      src : name_set;
-      dst_f : (vlu NameMap.t) list ;
-    }
-  | _ -> itms
-let fire n tn p =
+    net.itm_set <- dst_f'; net
+  | _ -> net
+let fire n tn cy =
   let t = NameMap.find tn n.trs_set in
-  let _ = operate n t p in
+  let _ = operate cy n t in
   n
 
-let rec evo_p n p =
-  let _ = NameMap.mapi (fun k t -> fire n k p) n.trs_set in
-  if p=0 then n else evo_p n (p-1);
-  n
+let rec evo_c n c =
+  let _ = NameMap.mapi (fun k t -> fire n k c) n.trs_set in
+  if c=0 then n else evo_c n (c-1)
 let evo n =
-  evo_p n n.proc_n
+  let _ = evo_c n n.cyc_n in
+  ()
+
+module Exp = struct
+  module Smpl = struct
+    type 'x plc = {
+      name: 'x;
+      cyc:int
+    }
+    type 'x trs = {
+      src : ('x plc,unit) Hashtbl.t;
+      dst : ('x plc,unit) Hashtbl.t;
+    }
+    type 'x tkn = ('x plc,unit) Hashtbl.t
+    type 'x net = ('x trs) list
+    exception Fire
+    let fire (v:'x tkn) (f:'x trs) : 'x tkn =
+      let v_cp = Hashtbl.copy v in
+      let _ = Hashtbl.iter
+          (fun x () ->
+             if Hashtbl.mem v_cp x
+             then Hashtbl.remove v_cp x
+             else raise @@ Fire) f.src in
+      let _ = Hashtbl.iter
+          (fun x () ->
+             if Hashtbl.mem v_cp x
+             then raise @@ Fire
+             else Hashtbl.add v_cp x ()) f.dst in
+      v_cp
+    let rec evo (v:'x tkn) (n:'x net) : 'x tkn =
+      match n with
+      | [] -> v
+      | hd::tl ->
+        let v' =
+          try fire v hd
+          with | Fire -> v
+               | err -> raise err in
+        evo v' tl
+    type 'x exp =
+      | Plc of 'x plc
+      | Trs of 'x trs
+      | Tkn of 'x tkn
+      | Net of 'x net
+      | Other of string
+  end
+
+  type t =
+    | Unit
+    | Trs of exp_trs
+    | Plc of unit
+    | Tkn of unit
+  and exp_trs =
+    | Cst of trs
+    | Inc of string
+end
